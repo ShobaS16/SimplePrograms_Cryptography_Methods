@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Classical Ciphers – Step by Step</title>
+<style>
+body { font-family: Arial; background:#f2f2f2; padding:20px; }
+.box { background:#fff; width:650px; margin:auto; padding:20px; border-radius:8px; }
+input, textarea, select { width:100%; margin-top:6px; padding:6px; }
+textarea { height:70px; }
+button { margin-top:10px; padding:8px 16px; }
+pre { background:#eee; padding:10px; height:220px; overflow:auto; }
+</style>
+</head>
+
+<body>
+
+<div class="box">
+<h2>Classical Cipher Demonstration (Step by Step)</h2>
+
+<input type="radio" name="cipher" value="caesar" checked> Caesar Cipher  
+<input type="radio" name="cipher" value="playfair"> Playfair Cipher  
+<input type="radio" name="cipher" value="hill"> Hill Cipher  
+
+<hr>
+
+<label>Plain Text:</label>
+<input type="text" id="plain">
+
+<label>Key / Shift / Matrix:</label>
+<input type="text" id="key" placeholder="Caesar: 3 | Playfair: MONARCHY | Hill: 3 3 2 5">
+
+<label>Hill Matrix Size:</label>
+<select id="size">
+  <option value="2">2 × 2</option>
+  <option value="3">3 × 3</option>
+  <option value="4">4 × 4</option>
+</select>
+
+<button onclick="encrypt()">Encrypt</button>
+<button onclick="decrypt()">Decrypt</button>
+<label>Cipher Text:</label>
+<input type="text" id="cipher">
+
+<h3>Step-by-Step Process</h3>
+<pre id="steps"></pre>
+</div>
+
+<script>
+const alpha = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
+/* Get selected cipher */
+function getCipher() {
+  let r = document.getElementsByName("cipher");
+  for (let i=0;i<r.length;i++)
+    if (r[i].checked) return r[i].value;
+}
+
+/* MAIN ENCRYPT FUNCTION */
+function encrypt() {
+  let type = getCipher();
+  let text = document.getElementById("plain").value.toUpperCase().replace(/[^A-Z]/g,"");
+  let key = document.getElementById("key").value.toUpperCase();
+  let steps = "", result = "";
+
+  /* ================= CAESAR ================= */
+  if (type === "caesar") {
+    let shift = parseInt(key);
+    steps += "Caesar Cipher\nShift = " + shift + "\n\n";
+
+    for (let i=0;i<text.length;i++) {
+      let p = alpha.indexOf(text[i]);
+      let c = (p + shift) % 26;
+      steps += text[i] + " → ("+p+"+"+shift+") % 26 = "+c+" → "+alpha[c]+"\n";
+      result += alpha[c];
+    }
+  }
+
+  /* ================= PLAYFAIR ================= */
+  if (type === "playfair") {
+    steps += "Playfair Cipher\nKey = "+key+"\n\n";
+    key = key.replace(/J/g,"I");
+    let matrix = "";
+
+    for (let c of key)
+      if (!matrix.includes(c)) matrix += c;
+
+    for (let c of alpha.replace("J",""))
+      if (!matrix.includes(c)) matrix += c;
+
+    steps += "5×5 Matrix:\n";
+    for (let i=0;i<25;i++) {
+      steps += matrix[i]+" ";
+      if ((i+1)%5===0) steps+="\n";
+    }
+
+    if (text.length%2!==0) text+="X";
+
+    steps += "\nDigraph Processing:\n";
+    for (let i=0;i<text.length;i+=2) {
+      let a=text[i], b=text[i+1];
+      let p1=matrix.indexOf(a), p2=matrix.indexOf(b);
+      let r1=Math.floor(p1/5), c1=p1%5;
+      let r2=Math.floor(p2/5), c2=p2%5;
+
+      if (r1===r2) { c1=(c1+1)%5; c2=(c2+1)%5; }
+      else if (c1===c2) { r1=(r1+1)%5; r2=(r2+1)%5; }
+      else { let t=c1; c1=c2; c2=t; }
+
+      let x=matrix[r1*5+c1], y=matrix[r2*5+c2];
+      steps += a+b+" → "+x+y+"\n";
+      result += x+y;
+    }
+  }
+
+  /* ================= HILL ================= */
+  if (type === "hill") {
+    let n = parseInt(document.getElementById("size").value);
+    let nums = key.split(" ").map(Number);
+    steps += "Hill Cipher ("+n+"×"+n+")\n\n";
+
+    if (nums.length !== n*n) {
+      alert("Enter "+(n*n)+" matrix values!");
+      return;
+    }
+
+    let matrix = [];
+    for (let i=0;i<n;i++)
+      matrix.push(nums.slice(i*n,(i+1)*n));
+
+    steps += "Key Matrix:\n";
+    for (let r of matrix) steps += r.join(" ")+"\n";
+
+    while (text.length % n !== 0) text+="X";
+
+    for (let i=0;i<text.length;i+=n) {
+      let block = [];
+      for (let j=0;j<n;j++)
+        block.push(alpha.indexOf(text[i+j]));
+
+      steps += "\nPlain Block: "+block.join(" ")+"\n";
+
+      let cipherBlock=[];
+      for (let r=0;r<n;r++) {
+        let sum=0;
+        for (let c=0;c<n;c++)
+          sum += matrix[r][c]*block[c];
+        cipherBlock.push(sum%26);
+      }
+
+      steps += "Cipher Numbers: "+cipherBlock.join(" ")+"\n";
+      for (let x of cipherBlock) result+=alpha[x];
+    }
+  }
+
+  document.getElementById("cipher").value=result;
+  document.getElementById("steps").textContent=steps;
+}
+
+function decrypt() {
+  let type = getCipher();
+  let text = document.getElementById("cipher").value.toUpperCase().replace(/[^A-Z]/g,"");
+  let key = document.getElementById("key").value.toUpperCase();
+  let steps = "", result = "";
+
+  /* ================= CAESAR ================= */
+  if (type === "caesar") {
+    let shift = parseInt(key);
+    steps += "Caesar Cipher Decryption\nShift = " + shift + "\n\n";
+
+    for (let i=0;i<text.length;i++) {
+      let c = alpha.indexOf(text[i]);
+      let p = (c - shift + 26) % 26;
+      steps += text[i] + " → ("+c+"-"+shift+") % 26 = "+p+" → "+alpha[p]+"\n";
+      result += alpha[p];
+    }
+  }
+
+  /* ================= PLAYFAIR ================= */
+  if (type === "playfair") {
+    steps += "Playfair Cipher Decryption\nKey = "+key+"\n\n";
+    key = key.replace(/J/g,"I");
+    let matrix = "";
+
+    for (let c of key)
+      if (!matrix.includes(c)) matrix += c;
+
+    for (let c of alpha.replace("J",""))
+      if (!matrix.includes(c)) matrix += c;
+
+    steps += "5×5 Matrix:\n";
+    for (let i=0;i<25;i++) {
+      steps += matrix[i]+" ";
+      if ((i+1)%5===0) steps+="\n";
+    }
+
+    steps += "\nDigraph Processing:\n";
+    for (let i=0;i<text.length;i+=2) {
+      let a=text[i], b=text[i+1];
+      let p1=matrix.indexOf(a), p2=matrix.indexOf(b);
+      let r1=Math.floor(p1/5), c1=p1%5;
+      let r2=Math.floor(p2/5), c2=p2%5;
+
+      if (r1===r2) { c1=(c1+4)%5; c2=(c2+4)%5; }
+      else if (c1===c2) { r1=(r1+4)%5; r2=(r2+4)%5; }
+      else { let t=c1; c1=c2; c2=t; }
+
+      let x=matrix[r1*5+c1], y=matrix[r2*5+c2];
+      steps += a+b+" → "+x+y+"\n";
+      result += x+y;
+    }
+  }
+
+  /* ================= HILL (2×2 ONLY) ================= */
+  if (type === "hill") {
+    let n = parseInt(document.getElementById("size").value);
+
+    if (n !== 2) {
+      alert("Hill decryption implemented for 2×2 only");
+      return;
+    }
+
+    let nums = key.split(" ").map(Number);
+    let a=nums[0], b=nums[1], c=nums[2], d=nums[3];
+
+    let det = (a*d - b*c) % 26;
+    if (det < 0) det += 26;
+
+    let invDet = -1;
+    for (let i=1;i<26;i++)
+      if ((det*i)%26===1) invDet=i;
+
+    if (invDet === -1) {
+      alert("Matrix is not invertible");
+      return;
+    }
+
+    let inv = [
+      [( d*invDet)%26, ((-b+26)*invDet)%26],
+      [((-c+26)*invDet)%26, ( a*invDet)%26]
+    ];
+
+    steps += "Hill Cipher Decryption (2×2)\n\n";
+    steps += "Inverse Matrix:\n";
+    steps += inv[0].join(" ")+"\n"+inv[1].join(" ")+"\n\n";
+
+    for (let i=0;i<text.length;i+=2) {
+      let c1=alpha.indexOf(text[i]);
+      let c2=alpha.indexOf(text[i+1]);
+
+      let p1=(inv[0][0]*c1 + inv[0][1]*c2)%26;
+      let p2=(inv[1][0]*c1 + inv[1][1]*c2)%26;
+
+      steps += "["+c1+" "+c2+"] → ["+p1+" "+p2+"]\n";
+      result += alpha[p1]+alpha[p2];
+    }
+  }
+
+  document.getElementById("plain").value=result;
+  document.getElementById("steps").textContent=steps;
+}
+</script>
+</body>
+</html>
